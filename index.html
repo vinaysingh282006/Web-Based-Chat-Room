@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anonymous Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #7289da;
+            --text-color: #ffffff;
+            --bg-color: #36393f;
+            --message-bg: #40444b;
+            --input-bg: #484c52;
+            --sidebar-bg: #2f3136;
+            --border-color: #202225;
+            --light-text: #dcddde;
+            --success-color: #43b581;
+            --warning-color: #faa61a;
+            --error-color: #f04747;
+        }
+
+        .light-mode {
+            --text-color: #2e3338;
+            --bg-color: #ffffff;
+            --message-bg: #f2f3f5;
+            --input-bg: #ebedef;
+            --sidebar-bg: #f8f9fa;
+            --border-color: #e3e5e8;
+            --light-text: #747f8d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+
+        .loading-animation {
+            display: flex;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            animation: bounce 1.5s infinite ease-in-out;
+        }
+
+        .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: var(--sidebar-bg);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 10;
+        }
+
+        .app-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+        }
+
+        .icon-button {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .icon-button:hover {
+            transform: scale(1.1);
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 15px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) var(--bg-color);
+        }
+
+        .messages-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages-container::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        .messages-container::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .message {
+            background-color: var(--message-bg);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message-username {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .message-content {
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: var(--light-text);
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        .message-input-container {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background-color: var(--input-bg);
+            border-radius: 8px;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+
+        #message-input:focus {
+            outline: 2px solid var(--primary-color);
+        }
+
+        #send-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #send-button:hover {
+            background-color: #677bc4;
+        }
+
+        .profile-sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 350px;
+            height: 100%;
+            background-color: var(--sidebar-bg);
+            border-left: 1px solid var(--border-color);
+            transition: right 0.3s ease-in-out;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .profile-sidebar.open {
+            right: 0;
+        }
+
+        .profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .profile-content {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .username-section {
+            margin-bottom: 30px;
+        }
+
+        .username-section label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .username-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #username-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        #save-username {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0 15px;
+            cursor: pointer;
+        }
+
+        .developer-info h3 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        .developer-info p {
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .social-link {
+            color: var(--text-color);
+            font-size: 1.5rem;
+            transition: color 0.2s;
+        }
+
+        .social-link:hover {
+            color: var(--primary-color);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .profile-sidebar {
+                width: 100%;
+                right: -100%;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .app-header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .message-input-container {
+                padding: 8px;
+            }
+            
+            #message-input {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body class="dark-mode">
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-animation">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>Anonymous Chat</h1>
+            <div class="header-controls">
+                <button id="dark-mode-toggle" class="icon-button">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="profile-toggle" class="icon-button">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Chat Container -->
+        <div class="chat-container">
+            <div id="messages" class="messages-container"></div>
+            <div class="message-input-container">
+                <input type="text" id="message-input" placeholder="Type your message...">
+                <button id="send-button"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+        <!-- Profile Sidebar -->
+        <div id="profile-sidebar" class="profile-sidebar">
+            <div class="profile-header">
+                <h2>Profile</h2>
+                <button id="close-profile" class="icon-button">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="profile-content">
+                <div class="username-section">
+                    <label for="username-input">Your Anonymous Name</label>
+                    <div class="username-input-container">
+                        <input type="text" id="username-input">
+                        <button id="save-username"><i class="fas fa-save"></i></button>
+                    </div>
+                </div>
+                <div class="developer-info">
+                    <h3>About the Developer</h3>
+                    <p>This anonymous chat app was created to provide secure, real-time communication.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-github"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase Configuration
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+        import { getDatabase, ref, push, onChildAdded, set } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC9fOKB9XEYdENKl77VybkjX7z8UeBJZ_k",
+            authDomain: "web-based-private-chat-room.firebaseapp.com",
+            projectId: "web-based-private-chat-room",
+            storageBucket: "web-based-private-chat-room.appspot.com",
+            messagingSenderId: "542332708765",
+            appId: "1:542332708765:web:d84ec41285580bdff5b174",
+            measurementId: "G-0XC2TN5EYL"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Loading Animation
+        document.addEventListener('DOMContentLoaded', () => {
+            // Simulate loading for demonstration
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loading-screen');
+                loadingScreen.style.opacity = '0';
+                
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 500);
+            }, 2000);
+        });
+
+        // Main Application
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Elements
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const messagesContainer = document.getElementById('messages');
+            const darkModeToggle = document.getElementById('dark-mode-toggle');
+            const profileToggle = document.getElementById('profile-toggle');
+            const profileSidebar = document.getElementById('profile-sidebar');
+            const closeProfile = document.getElementById('close-profile');
+            const usernameInput = document.getElementById('username-input');
+            const saveUsername = document.getElementById('save-username');
+            
+            // Generate a unique ID based on IP and random number
+            let userId = localStorage.getItem('anonymousChatUserId');
+            if (!userId) {
+                const randomNum = Math.floor(Math.random() * 10000);
+                userId = `user_${randomNum}_${Date.now()}`;
+                localStorage.setItem('anonymousChatUserId', userId);
+            }
+            
+            // Generate or retrieve username
+            let username = localStorage.getItem('anonymousChatUsername') || `Anonymous_${Math.floor(Math.random() * 1000)}`;
+            usernameInput.value = username;
+            
+            // Initialize Firebase references
+            const messagesRef = ref(database, 'messages');
+            
+            // Dark mode toggle
+            darkModeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                document.body.classList.toggle('dark-mode');
+                
+                const isDarkMode = document.body.classList.contains('dark-mode');
+                darkModeToggle.innerHTML = isDarkMode ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+                localStorage.setItem('darkMode', isDarkMode);
+            });
+            
+            // Check for saved dark mode preference
+            const savedDarkMode = localStorage.getItem('darkMode');
+            if (savedDarkMode === 'false') {
+                document.body.classList.remove('dark-mode');
+                document.body.classList.add('light-mode');
+                darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            }
+            
+            // Profile sidebar toggle
+            profileToggle.addEventListener('click', () => {
+                profileSidebar.classList.add('open');
+            });
+            
+            closeProfile.addEventListener('click', () => {
+                profileSidebar.classList.remove('open');
+            });
+            
+            // Save username
+            saveUsername.addEventListener('click', () => {
+                const newUsername = usernameInput.value.trim();
+                if (newUsername && newUsername !== username) {
+                    username = newUsername;
+                    localStorage.setItem('anonymousChatUsername', username);
+                    alert('Username updated successfully!');
+                }
+            });
+            
+            // Send message
+            function sendMessage() {
+                const messageText = messageInput.value.trim();
+                if (messageText) {
+                    const timestamp = new Date().getTime();
+                    const messageData = {
+                        text: messageText,
+                        username: username,
+                        userId: userId,
+                        timestamp: timestamp
+                    };
+                    
+                    push(messagesRef, messageData)
+                        .then(() => {
+                            messageInput.value = '';
+                        })
+                        .catch((error) => {
+                            console.error('Error sending message:', error);
+                            alert('Failed to send message. Please try again.');
+                        });
+                }
+            }
+            
+            sendButton.addEventListener('click', sendMessage);
+            
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // Display messages
+            onChildAdded(messagesRef, (snapshot) => {
+                const message = snapshot.val();
+                displayMessage(message);
+            });
+            
+            function displayMessage(message) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                
+                // Highlight user's own messages
+                if (message.userId === userId) {
+                    messageElement.style.marginLeft = 'auto';
+                    messageElement.style.backgroundColor = 'var(--primary-color)';
+                    messageElement.style.color = 'white';
+                }
+                
+                const formattedTime = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                messageElement.innerHTML = `
+                    <div class="message-username">${message.username}</div>
+                    <div class="message-content">${message.text}</div>
+                    <div class="message-time">${formattedTime}</div>
+                `;
+                
+                messagesContainer.appendChild(messageElement);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            // Auto-scroll to bottom when new messages arrive
+            const observer = new MutationObserver(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            });
+            
+            observer.observe(messagesContainer, { childList: true });
+        });
+    </script>
+</body>
+  </html>
